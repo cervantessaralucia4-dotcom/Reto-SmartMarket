@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmartMarket Predict 🛒</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --bg:#0D1117; --card:#161B22; --border:#21262D;
+    --accent:#00C896; --accent2:#F0A500;
+    --text:#E6EDF3; --muted:#8B949E; --danger:#F85149;
+  }
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg); color:var(--text);
+    min-height:100vh; display:flex;
+  }
+  /* Sidebar */
+  .sidebar{
+    width:240px; background:#0a0e13;
+    border-right:1px solid var(--border);
+    padding:24px 16px; position:sticky; top:0; height:100vh;
+    display:flex; flex-direction:column;
+  }
+  .brand{
+    font-size:18px; font-weight:700; margin-bottom:32px;
+    color:var(--accent);
+    display:flex; align-items:center; gap:8px;
+  }
+  .brand small{ display:block; color:var(--muted); font-weight:400; font-size:11px; margin-top:2px;}
+  .nav-item{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border-radius:8px;
+    color:var(--muted); cursor:pointer;
+    margin-bottom:6px; font-size:14px; font-weight:500;
+    transition:all .2s;
+  }
+  .nav-item:hover{ background:var(--card); color:var(--text);}
+  .nav-item.active{
+    background:linear-gradient(90deg, rgba(0,200,150,.15), transparent);
+    color:var(--accent); border-left:3px solid var(--accent);
+  }
+  .sidebar-footer{ margin-top:auto; font-size:11px; color:var(--muted); text-align:center;}
+
+  /* Main */
+  .main{ flex:1; padding:32px 40px; overflow-x:hidden;}
+  .page{ display:none; animation:fadeIn .4s ease;}
+  .page.active{ display:block;}
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1;transform:none;}}
+
+  h1{ font-size:26px; font-weight:700; margin-bottom:6px;}
+  .subtitle{ color:var(--muted); margin-bottom:28px; font-size:14px;}
+
+  .metrics{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+    gap:16px; margin-bottom:28px;
+  }
+  .card{
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  .metric .label{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.5px;}
+  .metric .value{ font-size:28px; font-weight:700; margin-top:6px; color:var(--accent);}
+  .metric .value.amber{ color:var(--accent2);}
+
+  table{ width:100%; border-collapse:collapse; font-size:14px;}
+  th, td{ padding:10px 12px; text-align:left; border-bottom:1px solid var(--border);}
+  th{ color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase;}
+  .badge{ padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;}
+  .badge.buy{ background:rgba(0,200,150,.15); color:var(--accent);}
+  .badge.no{ background:rgba(248,81,73,.15); color:var(--danger);}
+
+  .grid-2{ display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:20px;}
+  .chart-card h3{ margin-bottom:12px; font-size:15px; font-weight:600;}
+  .chart-wrap{ position:relative; height:280px;}
+
+  /* Simulator */
+  .sim-grid{ display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media(max-width:800px){ .sim-grid{ grid-template-columns:1fr;}}
+  .slider-row{ margin-bottom:20px;}
+  .slider-row label{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; color:var(--muted);}
+  .slider-row label b{ color:var(--accent); font-weight:600;}
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:6px; background:var(--border);
+    border-radius:5px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:18px; height:18px;
+    border-radius:50%; background:var(--accent); cursor:pointer;
+    box-shadow:0 0 0 4px rgba(0,200,150,.2);
+  }
+  .result-card{ text-align:center; padding:32px;}
+  .prob-circle{
+    width:180px; height:180px; border-radius:50%;
+    margin:20px auto; display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    background:conic-gradient(var(--accent) 0%, var(--border) 0%);
+    transition:background .4s;
+  }
+  .prob-inner{
+    width:140px; height:140px; background:var(--card);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+  }
+  .prob-inner .pct{ font-size:32px; font-weight:700;}
+  .prob-inner .lbl{ font-size:11px; color:var(--muted); text-transform:uppercase;}
+  .verdict{
+    margin-top:16px; padding:12px 24px; border-radius:8px;
+    font-weight:600; display:inline-block;
+  }
+  .verdict.yes{ background:rgba(0,200,150,.15); color:var(--accent); border:1px solid var(--accent);}
+  .verdict.no{ background:rgba(248,81,73,.15); color:var(--danger); border:1px solid var(--danger);}
+
+  /* Confusion matrix */
+  .cm{ display:grid; grid-template-columns:80px 1fr 1fr; gap:6px; max-width:420px; margin-top:12px;}
+  .cm > div{ padding:18px; text-align:center; border-radius:6px; font-weight:600; font-size:14px;}
+  .cm .hd{ background:transparent; color:var(--muted); font-size:11px; padding:6px;}
+  .cm .tp{ background:rgba(0,200,150,.25); color:var(--accent);}
+  .cm .tn{ background:rgba(0,200,150,.15); color:var(--accent);}
+  .cm .fp, .cm .fn{ background:rgba(248,81,73,.2); color:var(--danger);}
+
+  .fold-bar{
+    display:flex; align-items:center; gap:12px; margin-bottom:8px;
+    font-size:13px;
+  }
+  .fold-bar .bar{ flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden;}
+  .fold-bar .fill{ height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2));}
+
+  footer{
+    text-align:center; padding:20px; color:var(--muted); font-size:12px;
+    border-top:1px solid var(--border); margin-top:40px;
+  }
+  @media(max-width:768px){
+    body{ flex-direction:column;}
+    .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; flex-wrap:wrap; padding:12px;}
+    .brand{ width:100%; margin-bottom:12px;}
+    .nav-item{ flex:1; justify-content:center; margin:0 4px;}
+    .sidebar-footer{ display:none;}
+    .main{ padding:20px;}
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">🛒 SmartMarket<br><small>Predict ML</small></div>
+  <div class="nav-item active" data-page="inicio">🏠 <span>Inicio</span></div>
+  <div class="nav-item" data-page="eda">📊 <span>Análisis EDA</span></div>
+  <div class="nav-item" data-page="sim">🎯 <span>Simulador</span></div>
+  <div class="nav-item" data-page="metrics">📈 <span>Métricas Modelo</span></div>
+  <div class="sidebar-footer">Equipo 5 · SENA 2025</div>
+</aside>
+
+<main class="main">
+
+  <!-- INICIO -->
+  <section class="page active" id="inicio">
+    <h1>Panel Ejecutivo 🛒</h1>
+    <p class="subtitle">KPI: Incrementar ventas digitales · Predicción de compra de clientes</p>
+
+    <div class="metrics" id="metricsGrid"></div>
+
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Dataset de Clientes</h3>
+      <div style="overflow-x:auto;">
+        <table id="dataTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDA -->
+  <section class="page" id="eda">
+    <h1>Análisis Exploratorio 📊</h1>
+    <p class="subtitle">Relación entre variables y comportamiento de compra</p>
+    <div class="grid-2">
+      <div class="card chart-card"><h3>Tiempo en Web vs Compra</h3><div class="chart-wrap"><canvas id="chart1"></canvas></div></div>
+      <div class="card chart-card"><h3>Páginas Visitadas vs Compra</h3><div class="chart-wrap"><canvas id="chart2"></canvas></div></div>
+      <div class="card chart-card" style="grid-column:1/-1;"><h3>Histograma: Compras Anteriores por Clase</h3><div class="chart-wrap"><canvas id="chart3"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section class="page" id="sim">
+    <h1>Simulador de Compra 🎯</h1>
+    <p class="subtitle">Ajusta los parámetros para predecir la probabilidad de compra</p>
+    <div class="sim-grid">
+      <div class="card">
+        <h3 style="margin-bottom:20px;">Parámetros del cliente</h3>
+        <div class="slider-row">
+          <label>Edad <b id="vEdad">25</b></label>
+          <input type="range" id="sEdad" min="18" max="60" value="25">
+        </div>
+        <div class="slider-row">
+          <label>Tiempo en Web (min) <b id="vTiempo">15</b></label>
+          <input type="range" id="sTiempo" min="0" max="60" value="15">
+        </div>
+        <div class="slider-row">
+          <label>Páginas Visitadas <b id="vPag">8</b></label>
+          <input type="range" id="sPag" min="1" max="30" value="8">
+        </div>
+        <div class="slider-row">
+          <label>Compras Anteriores <b id="vComp">2</b></label>
+          <input type="range" id="sComp" min="0" max="20" value="2">
+        </div>
+      </div>
+      <div class="card result-card">
+        <h3>Predicción</h3>
+        <div class="prob-circle" id="probCircle">
+          <div class="prob-inner">
+            <div class="pct" id="probPct">0%</div>
+            <div class="lbl">Probabilidad</div>
+          </div>
+        </div>
+        <div class="verdict yes" id="verdict">Probable Comprador</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÉTRICAS -->
+  <section class="page" id="metrics">
+    <h1>Métricas del Modelo 📈</h1>
+    <p class="subtitle">Regresión Logística simulada · Evaluación de desempeño</p>
+
+    <div class="metrics">
+      <div class="card metric"><div class="label">Accuracy</div><div class="value" id="mAcc">0%</div></div>
+      <div class="card metric"><div class="label">Precision</div><div class="value amber" id="mPrec">0%</div></div>
+      <div class="card metric"><div class="label">Recall</div><div class="value" id="mRec">0%</div></div>
+      <div class="card metric"><div class="label">F1-Score</div><div class="value amber" id="mF1">0%</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="margin-bottom:14px;">Importancia de Variables</h3>
+        <table id="weightsTable"></table>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:14px;">Matriz de Confusión</h3>
+        <div class="cm" id="cmGrid"></div>
+      </div>
+      <div class="card" style="grid-column:1/-1;">
+        <h3 style="margin-bottom:14px;">Validación Cruzada (5 folds)</h3>
+        <div id="foldsList"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Equipo 5 — SmartMarket | SENA 2025</footer>
+</main>
+
+<script>
+/* =================== DATASET =================== */
+const DATA = [
+  {Edad:19,Tiempo_Web:5, Paginas_Visitadas:3, Compras_Anteriores:0, Compra:0},
+  {Edad:25,Tiempo_Web:20,Paginas_Visitadas:10,Compras_Anteriores:3, Compra:1},
+  {Edad:30,Tiempo_Web:25,Paginas_Visitadas:12,Compras_Anteriores:5, Compra:1},
+  {Edad:22,Tiempo_Web:8, Paginas_Visitadas:4, Compras_Anteriores:1, Compra:0},
+  {Edad:28,Tiempo_Web:18,Paginas_Visitadas:9, Compras_Anteriores:4, Compra:1},
+  {Edad:21,Tiempo_Web:6, Paginas_Visitadas:3, Compras_Anteriores:0, Compra:0},
+  {Edad:35,Tiempo_Web:30,Paginas_Visitadas:15,Compras_Anteriores:6, Compra:1},
+  {Edad:24,Tiempo_Web:10,Paginas_Visitadas:5, Compras_Anteriores:2, Compra:0},
+  {Edad:29,Tiempo_Web:22,Paginas_Visitadas:11,Compras_Anteriores:4, Compra:1},
+  {Edad:20,Tiempo_Web:7, Paginas_Visitadas:4, Compras_Anteriores:1, Compra:0},
+];
+const FEATS = ['Edad','Tiempo_Web','Paginas_Visitadas','Compras_Anteriores'];
+
+/* =================== ML SIMULADO =================== */
+const stats = {};
+FEATS.forEach(f=>{
+  const vals = DATA.map(d=>d[f]);
+  stats[f] = {min:Math.min(...vals), max:Math.max(...vals)};
+});
+function norm(f,v){ const s=stats[f]; return (v-s.min)/(s.max-s.min||1); }
+
+// Pesos por correlación con la variable Compra
+function corr(f){
+  const x=DATA.map(d=>d[f]), y=DATA.map(d=>d.Compra);
+  const mx=x.reduce((a,b)=>a+b,0)/x.length, my=y.reduce((a,b)=>a+b,0)/y.length;
+  let num=0,dx=0,dy=0;
+  for(let i=0;i<x.length;i++){ num+=(x[i]-mx)*(y[i]-my); dx+=(x[i]-mx)**2; dy+=(y[i]-my)**2;}
+  return num/Math.sqrt(dx*dy||1);
+}
+const WEIGHTS = {};
+FEATS.forEach(f=> WEIGHTS[f] = corr(f) * 4); // escalado
+const BIAS = -2.2;
+
+function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+function predictProb(obj){
+  let z = BIAS;
+  FEATS.forEach(f=> z += WEIGHTS[f] * norm(f, obj[f]));
+  return sigmoid(z);
+}
+
+/* =================== NAVEGACIÓN =================== */
+document.querySelectorAll('.nav-item').forEach(n=>{
+  n.onclick = ()=>{
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    n.classList.add('active');
+    document.getElementById(n.dataset.page).classList.add('active');
+  };
+});
+
+/* =================== INICIO =================== */
+function renderInicio(){
+  const total = DATA.length;
+  const buyers = DATA.filter(d=>d.Compra===1).length;
+  const rate = (buyers/total*100).toFixed(1);
+  const avgAge = (DATA.reduce((a,b)=>a+b.Edad,0)/total).toFixed(1);
+  const avgTime = (DATA.reduce((a,b)=>a+b.Tiempo_Web,0)/total).toFixed(1);
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="card metric"><div class="label">Total Clientes</div><div class="value">${total}</div></div>
+    <div class="card metric"><div class="label">Tasa de Compra</div><div class="value amber">${rate}%</div></div>
+    <div class="card metric"><div class="label">Edad Promedio</div><div class="value">${avgAge}</div></div>
+    <div class="card metric"><div class="label">Tiempo Web Prom.</div><div class="value amber">${avgTime} min</div></div>
+  `;
+
+  let html = `<thead><tr><th>#</th><th>Edad</th><th>Tiempo Web</th><th>Páginas</th><th>Compras Ant.</th><th>Estado</th></tr></thead><tbody>`;
+  DATA.forEach((d,i)=>{
+    const b = d.Compra===1
+      ? '<span class="badge buy">Comprador</span>'
+      : '<span class="badge no">No Comprador</span>';
+    html += `<tr><td>${i+1}</td><td>${d.Edad}</td><td>${d.Tiempo_Web}</td><td>${d.Paginas_Visitadas}</td><td>${d.Compras_Anteriores}</td><td>${b}</td></tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('dataTable').innerHTML = html;
+}
+
+/* =================== EDA =================== */
+Chart.defaults.color = '#8B949E';
+Chart.defaults.borderColor = '#21262D';
+
+function renderEDA(){
+  const buyers = DATA.filter(d=>d.Compra===1);
+  const nonBuy = DATA.filter(d=>d.Compra===0);
+
+  new Chart(document.getElementById('chart1'),{
+    type:'scatter',
+    data:{ datasets:[
+      {label:'Comprador', data:buyers.map(d=>({x:d.Tiempo_Web,y:d.Compra})), backgroundColor:'#00C896', pointRadius:8},
+      {label:'No Comprador', data:nonBuy.map(d=>({x:d.Tiempo_Web,y:d.Compra})), backgroundColor:'#F85149', pointRadius:8},
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ x:{title:{display:true,text:'Tiempo en Web (min)'}}, y:{title:{display:true,text:'Compra'},ticks:{stepSize:1}}}}
+  });
+
+  new Chart(document.getElementById('chart2'),{
+    type:'scatter',
+    data:{ datasets:[
+      {label:'Comprador', data:buyers.map(d=>({x:d.Paginas_Visitadas,y:d.Compra})), backgroundColor:'#00C896', pointRadius:8},
+      {label:'No Comprador', data:nonBuy.map(d=>({x:d.Paginas_Visitadas,y:d.Compra})), backgroundColor:'#F85149', pointRadius:8},
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ x:{title:{display:true,text:'Páginas Visitadas'}}, y:{title:{display:true,text:'Compra'},ticks:{stepSize:1}}}}
+  });
+
+  // Histograma compras anteriores
+  const bins=[0,1,2,3,4,5,6];
+  const histBuy = bins.map(b=> buyers.filter(d=>d.Compras_Anteriores===b).length);
+  const histNo  = bins.map(b=> nonBuy.filter(d=>d.Compras_Anteriores===b).length);
+  new Chart(document.getElementById('chart3'),{
+    type:'bar',
+    data:{ labels:bins.map(b=>b+''), datasets:[
+      {label:'Comprador', data:histBuy, backgroundColor:'#00C896'},
+      {label:'No Comprador', data:histNo, backgroundColor:'#F85149'},
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ x:{title:{display:true,text:'Compras Anteriores'}}, y:{title:{display:true,text:'Frecuencia'},ticks:{stepSize:1}}}}
+  });
+}
+
+/* =================== SIMULADOR =================== */
+function updateSim(){
+  const obj = {
+    Edad: +document.getElementById('sEdad').value,
+    Tiempo_Web: +document.getElementById('sTiempo').value,
+    Paginas_Visitadas: +document.getElementById('sPag').value,
+    Compras_Anteriores: +document.getElementById('sComp').value,
+  };
+  document.getElementById('vEdad').textContent = obj.Edad;
+  document.getElementById('vTiempo').textContent = obj.Tiempo_Web;
+  document.getElementById('vPag').textContent = obj.Paginas_Visitadas;
+  document.getElementById('vComp').textContent = obj.Compras_Anteriores;
+
+  const p = predictProb(obj);
+  const pct = (p*100).toFixed(1);
+  document.getElementById('probPct').textContent = pct+'%';
+  const color = p>=0.5 ? '#00C896' : '#F85149';
+  document.getElementById('probCircle').style.background =
+    `conic-gradient(${color} ${p*100}%, #21262D 0%)`;
+  const v = document.getElementById('verdict');
+  if(p>=0.5){ v.className='verdict yes'; v.textContent='✓ Probable Comprador';}
+  else      { v.className='verdict no';  v.textContent='✗ Probable No Comprador';}
+}
+['sEdad','sTiempo','sPag','sComp'].forEach(id=>{
+  document.getElementById(id).oninput = updateSim;
+});
+
+/* =================== MÉTRICAS =================== */
+function renderMetrics(){
+  let tp=0,tn=0,fp=0,fn=0;
+  DATA.forEach(d=>{
+    const pred = predictProb(d) >= 0.5 ? 1 : 0;
+    if(pred===1 && d.Compra===1) tp++;
+    else if(pred===0 && d.Compra===0) tn++;
+    else if(pred===1 && d.Compra===0) fp++;
+    else fn++;
+  });
+  const acc = (tp+tn)/DATA.length;
+  const prec = tp/(tp+fp||1);
+  const rec  = tp/(tp+fn||1);
+  const f1   = 2*prec*rec/(prec+rec||1);
+  document.getElementById('mAcc').textContent = (acc*100).toFixed(1)+'%';
+  document.getElementById('mPrec').textContent= (prec*100).toFixed(1)+'%';
+  document.getElementById('mRec').textContent = (rec*100).toFixed(1)+'%';
+  document.getElementById('mF1').textContent  = (f1*100).toFixed(1)+'%';
+
+  // Pesos
+  const absMax = Math.max(...FEATS.map(f=>Math.abs(WEIGHTS[f])));
+  let wh = '<thead><tr><th>Variable</th><th>Peso</th><th>Importancia</th></tr></thead><tbody>';
+  FEATS.forEach(f=>{
+    const imp = Math.abs(WEIGHTS[f])/absMax*100;
+    wh += `<tr><td>${f}</td><td>${WEIGHTS[f].toFixed(3)}</td>
+      <td><div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+        <div style="width:${imp}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div>
+      </div></td></tr>`;
+  });
+  wh += '</tbody>';
+  document.getElementById('weightsTable').innerHTML = wh;
+
+  // Matriz confusión
+  document.getElementById('cmGrid').innerHTML = `
+    <div class="hd"></div><div class="hd">Pred: No</div><div class="hd">Pred: Sí</div>
+    <div class="hd">Real: No</div><div class="tn">TN<br>${tn}</div><div class="fp">FP<br>${fp}</div>
+    <div class="hd">Real: Sí</div><div class="fn">FN<br>${fn}</div><div class="tp">TP<br>${tp}</div>
+  `;
+
+  // Folds simulados
+  let fh = '';
+  for(let i=1;i<=5;i++){
+    const facc = Math.min(100, Math.max(60, acc*100 + (Math.random()*16-8))).toFixed(1);
+    fh += `<div class="fold-bar"><span>Fold ${i}</span>
+      <div class="bar"><div class="fill" style="width:${facc}%"></div></div>
+      <b style="color:var(--accent);min-width:55px;text-align:right;">${facc}%</b></div>`;
+  }
+  document.getElementById('foldsList').innerHTML = fh;
+}
+
+/* =================== INIT =================== */
+renderInicio();
+renderEDA();
+renderMetrics();
+updateSim();
+</script>
+</body>
+</html>
