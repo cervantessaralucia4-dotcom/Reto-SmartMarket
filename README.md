@@ -328,7 +328,16 @@ SmartMarket/
 │
 └── requirements.txt
 ```
+👥 Equipo de Desarrollo
+Grupo 5
 
+Proyecto desarrollado como evidencia académica dentro del proceso de formación del SENA, aplicando conceptos de Ingeniería de Datos, ETL, Análisis de Datos y Machine Learning.
+
+Integrantes
+Sara Cervantes
+Jailis Gomez
+Jhonatan Hernandez
+Deivis Pereira
 ---
 
 # ✅ Conclusión
